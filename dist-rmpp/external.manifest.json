@@ -1,11 +1,12 @@
 {
-    "name": "Chessmarkable (Paper Pro)",
+    "name": "Chessmarkable",
     "application": "chessmarkable",
     "qtfb": true,
     "environment": {
         "LD_PRELOAD": "/home/root/shims/qtfb-shim.so",
-        "QTFB_SHIM_MODE": "RGB565",
-        "QTFB_SHIM_INPUT_MODE": "RMPP",
+        "QTFB_SHIM_MODEL": "false",
+        "QTFB_SHIM_INPUT_MODE": "NATIVE",
+        "QTFB_SHIM_MODE": "N_RGB565",
         "RUST_LOG": "info"
     }
 }
