@@ -1,0 +1,128 @@
+on: [push, pull_request]
+name: Continuous integration
+
+env:
+  TARGET: armv7-unknown-linux-musleabihf
+
+jobs:
+
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: ${{ env.TARGET }}
+        override: true
+        components: rustfmt
+    - uses: actions-rs/cargo@v1
+      with:
+        command: fetch
+    - uses: actions-rs/cargo@v1
+      with:
+        command: check
+        use-cross: true
+        args: --target ${{ env.TARGET }} --locked --frozen --offline
+    - uses: actions-rs/cargo@v1
+      with:
+        command: check
+        use-cross: true
+        args: --target ${{ env.TARGET }} --locked --frozen --offline --no-default-features --features input
+    - uses: actions-rs/cargo@v1
+      with:
+        command: check
+        use-cross: true
+        args: --target ${{ env.TARGET }} --locked --frozen --offline --no-default-features --features framebuffer
+    - uses: actions-rs/cargo@v1
+      with:
+        command: check
+        use-cross: true
+        args: --target ${{ env.TARGET }} --locked --frozen --offline --no-default-features --features framebuffer-text-drawing,input
+    - uses: actions-rs/cargo@v1
+      with:
+        command: check
+        use-cross: true
+        args: --target ${{ env.TARGET }} --locked --frozen --offline --no-default-features --features appctx
+
+  test:
+    name: Test Suite on gnueabihf
+    runs-on: ubuntu-latest
+    env:
+      TARGET: armv7-unknown-linux-gnueabihf
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: ${{ env.TARGET }}
+        override: true
+        components: rustfmt
+    - uses: actions-rs/cargo@v1
+      with:
+        command: fetch
+    - uses: actions-rs/cargo@v1
+      with:
+        command: test
+        use-cross: true
+        args: --target ${{ env.TARGET }} --locked --frozen --offline
+  test-local:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+    - uses: actions-rs/cargo@v1
+      with:
+        command: fetch
+    - uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --locked --frozen --offline
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: ${{ env.TARGET }}
+        override: true
+        components: rustfmt
+    - uses: actions-rs/cargo@v1
+      with:
+        command: fetch
+    - uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: ${{ env.TARGET }}
+        override: true
+        components: rustfmt, clippy
+    - uses: actions-rs/cargo@v1
+      with:
+        command: fetch
+    - uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+        use-cross: true
+        args: --target ${{ env.TARGET }} --locked --frozen --offline -- -D warnings --no-deps -W clippy::cast_lossless -W clippy::redundant_closure_for_method_calls -W clippy::str_to_string

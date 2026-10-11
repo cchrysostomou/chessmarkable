@@ -9,7 +9,8 @@ edition = "2018"
 [dependencies]
 serde_string_derive = { path = "serde_string_derive" }
 
-libremarkable = "0.7.0"
+# reMarkable Paper Pro port of libremarkable (see libremarkable-rmpp/)
+libremarkable = { path = "libremarkable-rmpp" }
 anyhow = "1"
 clap = { version = "4.5", features = [ "derive" ] }
 downcast-rs = "2.0"

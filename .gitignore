@@ -1,3 +1,5 @@
 target
 .idea/
 *.iml
+
+/dist-rmpp/chessmarkable

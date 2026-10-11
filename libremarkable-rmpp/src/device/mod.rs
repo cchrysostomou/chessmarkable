@@ -1,0 +1,173 @@
+use rotate::InputDeviceRotation;
+use std::sync::LazyLock;
+
+/// Utility for rotating
+pub mod rotate;
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Model {
+    Gen1,
+    Gen2,
+    /// reMarkable Paper Pro ("Ferrari"), rendered through AppLoad's QTFB shim
+    PaperPro,
+}
+
+impl std::fmt::Display for Model {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Model::Gen1 => write!(f, "reMarkable 1"),
+            Model::Gen2 => write!(f, "reMarkable 2"),
+            Model::PaperPro => write!(f, "reMarkable Paper Pro"),
+        }
+    }
+}
+
+impl Model {
+    /// This fork is built exclusively for the reMarkable Paper Pro. The machine
+    /// file may be spoofed by the AppLoad shim (QTFB_SHIM_MODEL), so it is not
+    /// trusted for model detection.
+    pub fn current_model() -> Result<Model, ErrorKind> {
+        Ok(Model::PaperPro)
+    }
+
+    pub fn detect_from_machine_file() -> Result<Model, ErrorKind> {
+        let content = std::fs::read_to_string("/sys/devices/soc0/machine")?;
+        let machine_name = content.trim();
+        if machine_name.to_ascii_lowercase().contains("ferrari") {
+            return Ok(Model::PaperPro);
+        }
+        // "reMarkable Prototype 1" was also seen for reMarkable 1 owners (and it didn't mean they preordered it).
+        // See https://github.com/Eeems/oxide/issues/48#issuecomment-698414093
+        if machine_name == "reMarkable 1.0" || machine_name == "reMarkable Prototype 1" {
+            Ok(Model::Gen1)
+        // https://github.com/Eeems/oxide/issues/48#issuecomment-698223552
+        } else if machine_name == "reMarkable 2.0" {
+            Ok(Model::Gen2)
+        } else {
+            Err(ErrorKind::UnknownVersion(machine_name.to_owned()))
+        }
+    }
+
+    /// Path for gen 1 can be used as long as the rm2fb shim is active:
+    /// LD_PRELOAD="/opt/lib/librm2fb_client.so.1" <YOUR_BINARY> or
+    /// rm2fb-client YOUR_BINARY
+    /// https://github.com/ddvk/remarkable2-framebuffer/
+    /// If `/dev/shm/swtfb.01` is used for the framebuffer, the
+    /// internal swtfb_client will be used. This enables the use
+    /// of musl builds. But the rm2fb server must still be installed.
+    ///
+    /// TODO: Use proper path (needs breaking change for FramebufferBase::from_path() !)
+    pub fn framebuffer_path(&self) -> &'static str {
+        match self {
+            Model::Gen1 => "/dev/fb0",
+            Model::Gen2 => "/dev/shm/swtfb.01",
+            // Emulated by the AppLoad QTFB shim
+            Model::PaperPro => "/dev/fb0",
+        }
+    }
+}
+
+pub static CURRENT_DEVICE: LazyLock<Device> = LazyLock::new(Device::new);
+
+/// Differentiate between the reasons why the determination of the current device model can fail.
+#[derive(Debug)]
+pub enum ErrorKind {
+    /// An IO error occured when reading /sys/devices/soc0/machine
+    IOError(std::io::Error),
+    /// The version string in /sys/devices/soc0/machine does not match any of the known versions.
+    UnknownVersion(String),
+}
+
+impl From<std::io::Error> for ErrorKind {
+    fn from(err: std::io::Error) -> Self {
+        ErrorKind::IOError(err)
+    }
+}
+
+impl std::fmt::Display for ErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ErrorKind::IOError(err) => err.fmt(f),
+            ErrorKind::UnknownVersion(version) => {
+                write!(f, "Unknown reMarkable version '{}'", version)
+            }
+        }
+    }
+}
+
+/// Mainly information regarding both models
+pub struct Device {
+    pub model: Model,
+}
+
+/// The here specified roation and inversions should get the device into portrait
+/// rotation where the origin (0, 0) is at the top left.
+/// Scaling is not specified here, but Inputs will scale the axis to match the
+/// size of the framebuffer.
+pub struct InputDevicePlacement {
+    /// What rotation is needed to get it into portrait rotation
+    pub rotation: InputDeviceRotation,
+    /// Whether to the x axis any axis AFTER a rotation was applied
+    pub invert_x: bool,
+    /// Whether to the y axis any axis AFTER a rotation was applied
+    pub invert_y: bool,
+}
+
+impl Device {
+    fn new() -> Self {
+        let model = Model::current_model()
+            .unwrap_or_else(|e| panic!("Got an error when determining model: {}", e));
+
+        Self { model }
+    }
+
+    pub fn get_multitouch_placement(&self) -> InputDevicePlacement {
+        match self.model {
+            Model::Gen1 => InputDevicePlacement {
+                rotation: InputDeviceRotation::Rot180,
+                invert_x: false,
+                invert_y: false,
+            },
+            Model::Gen2 => InputDevicePlacement {
+                rotation: InputDeviceRotation::Rot180,
+                invert_x: true,
+                invert_y: false,
+            },
+            // The Paper Pro touch panel axes already match the portrait screen
+            Model::PaperPro => InputDevicePlacement {
+                rotation: InputDeviceRotation::Rot0,
+                invert_x: false,
+                invert_y: false,
+            },
+        }
+    }
+
+    pub fn get_wacom_placement(&self) -> InputDevicePlacement {
+        match self.model {
+            Model::PaperPro => InputDevicePlacement {
+                rotation: InputDeviceRotation::Rot0,
+                invert_x: false,
+                invert_y: false,
+            },
+            // The Wacom digitizer on Gen1 and Gen2 is placed the same
+            _ => InputDevicePlacement {
+                rotation: InputDeviceRotation::Rot270,
+                invert_x: false,
+                invert_y: false,
+            },
+        }
+    }
+
+    /// Name of the battery as found in /sys/class/power_supply
+    pub fn get_internal_battery_name(&self) -> &str {
+        match self.model {
+            Model::Gen1 => "bq27441-0",
+            Model::Gen2 => "max77818_battery",
+            Model::PaperPro => "max1726x_battery",
+        }
+    }
+
+    pub fn get_framebuffer_path(&self) -> &'static str {
+        self.model.framebuffer_path()
+    }
+}
