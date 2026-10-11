@@ -57,34 +57,3 @@ enable-runtime-benchmarking = ["stopwatch"]
 
 [profile.release]
 debug = true
-
-[[example]]
-name = "spy"
-path = "examples/spy.rs"
-crate-type = ["dylib"]
-
-[[example]]
-name = "swtfb_sysv_spy"
-path = "examples/swtfb_sysv_spy.rs"
-crate-type = ["dylib"]
-
-[[example]]
-name = "demo"
-path = "examples/demo.rs"
-crate-type = ["bin"]
-
-[[example]]
-name = "live"
-path = "examples/live.rs"
-crate-type = ["bin"]
-
-[dev-dependencies]
-env_logger = "0.11.5"
-# For spy
-redhook = "2.0.0"
-# For demo
-chrono = "0.4.38"
-# For live
-tiny_http = "0.12.0"
-# For screenshot
-rgb565 = "0.1.3"

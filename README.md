@@ -1,12 +1,8 @@
 # chessMarkable
 
-[![rm1](https://img.shields.io/badge/rM1-supported-green)](https://remarkable.com/store/remarkable)
-[![rm2](https://img.shields.io/badge/rM2-supported-green)](https://remarkable.com/store/remarkable-2)
-[![opkg](https://img.shields.io/badge/OPKG-chessmarkable-blue)](https://github.com/toltec-dev/toltec)
-[![launchers](https://img.shields.io/badge/Launchers-supported-green)](https://github.com/reHackable/awesome-reMarkable#launchers)
 [![Mentioned in Awesome reMarkable](https://awesome.re/mentioned-badge.svg)](https://github.com/reHackable/awesome-reMarkable)
 
-A chess game for the reMarkable tablet writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish](https://stockfishchess.org/).
+A chess game for the reMarkable Paper Pro (fork of [LinusCDE/chessmarkable](https://github.com/LinusCDE/chessmarkable)) writting using the [pleco](https://crates.io/crates/pleco) chess library which is a port of [Stockfish](https://stockfishchess.org/).
 
 <img src="https://transfer.cosmos-ink.net/SF/mainmenu.png" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/1tRXA8n/pgnselect.png" width="30%">&nbsp;<img src="https://transfer.cosmos-ink.net/LZ9QT/3.jpg" width="30%">
 
@@ -33,43 +29,30 @@ Chessmarkable also includes a PGN Player (huge thanks to [@rmadhwal](https://git
 You can put downloaded PGN Files into the directory `~/.config/chessmarkable/pgn` on the device with software like scp, FileZilla or WinSCP.
 After this, you should be able to browse all the games from the menu point "PGN Viewer" and step through all the games.
 
-## Installation
+## Installation (reMarkable Paper Pro + AppLoad)
 
-### Prebuilt binary/program
+This fork targets the **reMarkable Paper Pro** running [xovi](https://github.com/asivery/rm-xovi-extensions) with [AppLoad](https://github.com/asivery/rm-appload) and its `qtfb-shim.so` (expected at `/home/root/shims/qtfb-shim.so`).
 
-- Go the the [releases page](https://github.com/LinusCDE/chessmarkable/releases)
-- Get the newest released binary file (the one without any extension) and copy it onto your remarkable, using e.g. FileZilla, WinSCP or scp.
-- SSH into your remarkable and mark the file as executable with `chmod +x chess`
-- Stop xochitl (the interface) with `systemctl stop xochitl`
-- Start the game with `./chessmarkable` (or whatever the binary is called now)
-- After you're done, restart xochitl with `systemctl start xochitl`
+1. Build the binary (see below) and copy it into `dist-rmpp/`.
+2. Copy the contents of `dist-rmpp/` (`chessmarkable`, `external.manifest.json`, `icon.png`) to `/home/root/xovi/exthome/appload/chessmarkable/` on the tablet.
+3. `chmod +x /home/root/xovi/exthome/appload/chessmarkable/chessmarkable`
+4. Reload AppLoad and open **Chessmarkable**.
 
-### Compiling
+## Compiling
 
-In general building should work on most toolchains. You generally wanna target armv7-unknown-linux-gnueabihf for any remarkable.
-But as with all things in life, stuff never works great on every setup.
+The app uses a patched copy of libremarkable 0.7.0 in `libremarkable-rmpp/`. It adds a Paper Pro device model (1620x2160 framebuffer through the AppLoad QTFB shim), a 64-bit-correct `fb_fix_screeninfo`, and a more tolerant input scan for the Paper Pro's touch panel.
 
-That's why I recommend to nowadays build with the rust image from [toltec-dev/toolchain](https://github.com/toltec-dev/toolchain). It is the most modern and the closest to the actual reMarkable system as you're gonna get as of now.
+Cross-compile for aarch64 with [cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild). Pinning glibc 2.31 keeps the binary compatible with the tablet:
 
-To make it easier to use, I found that you can use the rust image (`ghcr.io/toltec-dev/rust:v3.2`, [all versions](https://github.com/toltec-dev/toolchain/pkgs/container/rust)).
-This is done using the `Cross.toml` file. So you should just need to run `cross build --target=armv7-unknown-linux-gnueabihf --release` and it will use the above image (or possibly newer if this readme gets out-of-date).
-
-## Todo
-
-- Proper own icon(s)
-- Clean the code
-
-## reMarkable 2 support
-
-This app cant actually drive the rM 2 framebuffer. It needs [rm2fb](https://github.com/ddvk/remarkable2-framebuffer/) for that.
-
-If you execute chessmarkable from ssh, be sure to have followed rm2fb steps to enable the support. When installed running `rm2fb-client ./chessmarkable` should work as well. Launching through a launcher (from toltec) should just work.
-
-### Environment variables
-
-The environment variable `LIBREMARKABLE_FB_DISFAVOR_INTERNAL_RM2FB` can be set to `1` to make this application not try to use its internal framebuffer client for [RM2FB](https://github.com/ddvk/remarkable2-framebuffer/).
+```sh
+rustup target add aarch64-unknown-linux-gnu
+cargo install cargo-zigbuild   # requires zig on PATH
+cargo zigbuild --release --target aarch64-unknown-linux-gnu.2.31 --bin chessmarkable
+cp target/aarch64-unknown-linux-gnu/release/chessmarkable dist-rmpp/
+```
 
 ## Credit
 
 - The [pleco](https://crates.io/crates/pleco) library is used as the engine, checking valid moves and providing the bots
+- [libremarkable](https://github.com/canselcik/libremarkable) (MIT), vendored and patched in `libremarkable-rmpp/`
 - The chess pices are from [pixabay here](https://pixabay.com/vectors/chess-pieces-set-symbols-game-26774/)
