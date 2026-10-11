@@ -124,6 +124,14 @@ impl Framebuffer {
         };
 
         let frame_length = (fix_screen_info.line_length * var_screen_info.yres) as usize;
+        log::info!(
+            "Framebuffer {}x{} {}bpp line_length={} smem_len={}",
+            var_screen_info.xres,
+            var_screen_info.yres,
+            var_screen_info.bits_per_pixel,
+            fix_screen_info.line_length,
+            fix_screen_info.smem_len
+        );
 
         let mem_map = match &framebuffer_update {
             FramebufferUpdate::Ioctl(device) => MmapOptions::new()
